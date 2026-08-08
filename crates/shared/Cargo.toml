@@ -1,0 +1,13 @@
+[package]
+name = "pacman-shared"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+
+# The simulation is plain Rust on purpose: no bevy, no networking, no async.
+# It runs identically on the server and the client and is testable without an App.
+[dependencies]
+glam = { workspace = true }
+serde = { workspace = true }
+postcard = { workspace = true }

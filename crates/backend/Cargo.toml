@@ -1,0 +1,21 @@
+[package]
+name = "pacman-backend"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+
+# The only piece that holds the GameFlow API key. It brokers every call for the
+# client and the game server, and contains no game logic at all.
+[dependencies]
+axum = { workspace = true }
+tokio = { workspace = true }
+reqwest = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+jsonwebtoken = { workspace = true }
+tower-http = { workspace = true }
+tracing = { workspace = true }
+tracing-subscriber = { workspace = true }
+thiserror = { workspace = true }
+rand = { workspace = true }

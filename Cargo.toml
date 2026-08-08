@@ -1,0 +1,52 @@
+[workspace]
+resolver = "2"
+members = [
+    "crates/shared",
+    "crates/server",
+    "crates/client",
+    "crates/backend",
+]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2021"
+rust-version = "1.96"
+license = "MIT"
+
+[workspace.dependencies]
+pacman-shared = { path = "crates/shared" }
+
+glam = { version = "0.32", features = ["serde"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+postcard = { version = "1", features = ["alloc"] }
+
+# default-features must be declared here, otherwise a member setting
+# `default-features = false` is silently ignored and the headless server drags
+# in the whole renderer, Wayland included.
+bevy = { version = "0.19", default-features = false }
+bevy_renet = { version = "5.0", features = ["netcode"] }
+renet = "2.0"
+renet_netcode = "2.0"
+
+tokio = { version = "1", features = ["rt-multi-thread", "macros", "signal", "time"] }
+reqwest = { version = "0.12", default-features = false, features = ["json", "rustls-tls"] }
+axum = "0.8"
+tower-http = { version = "0.6", features = ["cors", "trace"] }
+jsonwebtoken = "9"
+rand = "0.9"
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+anyhow = "1"
+thiserror = "2"
+crossbeam-channel = "0.5"
+gameflow-gameserver-sdk = "0.1"
+
+[profile.release]
+opt-level = 3
+lto = "thin"
+codegen-units = 1
+
+# Bevy is unusable in debug without optimised dependencies.
+[profile.dev.package."*"]
+opt-level = 3

@@ -1,0 +1,46 @@
+[package]
+name = "pacman-client"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+
+# The player app. It renders, it predicts its own Pac-Man, and it sends one
+# thing over the wire: the direction it wants to go. It never reports a score
+# and it never sees a GameFlow API key.
+#
+# Features are listed explicitly rather than taken from bevy's defaults so that
+# wayland stays out of the build: the headless server shares this dependency
+# graph and has no business linking a compositor.
+[dependencies]
+pacman-shared = { workspace = true }
+
+bevy = { workspace = true, features = [
+    "std",
+    "multi_threaded",
+    "bevy_log",
+    "bevy_asset",
+    "bevy_state",
+    "bevy_color",
+    "bevy_window",
+    "bevy_winit",
+    "x11",
+    "bevy_render",
+    "bevy_core_pipeline",
+    "bevy_sprite",
+    "bevy_sprite_render",
+    "bevy_text",
+    "bevy_ui",
+    "bevy_ui_render",
+    "default_font",
+    "png",
+] }
+bevy_renet = { workspace = true }
+renet = { workspace = true }
+renet_netcode = { workspace = true }
+
+tokio = { workspace = true }
+crossbeam-channel = { workspace = true }
+reqwest = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }

@@ -1,0 +1,29 @@
+[package]
+name = "pacman-server"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+
+# The authoritative dedicated server. Headless Bevy: no window, no renderer, no
+# assets. It owns the simulation and is the only thing allowed to decide what
+# happened in a match.
+[dependencies]
+pacman-shared = { workspace = true }
+
+bevy = { workspace = true, default-features = false, features = [
+    "std",
+    "bevy_log",
+    "multi_threaded",
+] }
+bevy_renet = { workspace = true }
+renet = { workspace = true }
+renet_netcode = { workspace = true }
+
+gameflow-gameserver-sdk = { workspace = true }
+tokio = { workspace = true }
+crossbeam-channel = { workspace = true }
+reqwest = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+jsonwebtoken = { workspace = true }
