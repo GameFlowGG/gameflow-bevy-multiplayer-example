@@ -15,7 +15,7 @@ use bevy_renet::netcode::{
 use bevy_renet::{RenetServer, RenetServerPlugin};
 use renet::{ChannelConfig, ConnectionConfig, SendType};
 
-use pacman_shared::protocol::{CH_EVENT, CH_INPUT, CH_SNAPSHOT};
+use ghostchase_shared::protocol::{CH_EVENT, CH_INPUT, CH_SNAPSHOT};
 
 use crate::gameflow_plugin::{GameFlowClient, GameFlowConnected};
 use crate::session::Session;

@@ -14,7 +14,7 @@ rust-version = "1.96"
 license = "MIT"
 
 [workspace.dependencies]
-pacman-shared = { path = "crates/shared" }
+ghostchase-shared = { path = "crates/shared" }
 
 glam = { version = "0.32", features = ["serde"] }
 serde = { version = "1", features = ["derive"] }

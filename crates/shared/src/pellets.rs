@@ -11,7 +11,7 @@ use crate::maze::{chebyshev, MAZE, MAZE_H, MAZE_W};
 
 /// Pellets respawned per second.
 pub const DRIP_PER_SEC: f32 = 3.0;
-/// A drip never lands this close to a live Pac-Man, so nobody is fed for free.
+/// A drip never lands this close to a live runner, so nobody is fed for free.
 pub const DRIP_MIN_DISTANCE: i32 = 4;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
@@ -113,7 +113,7 @@ impl PelletField {
     }
 
     /// Respawns pellets for `dt` seconds. `players` are the tiles of every live
-    /// Pac-Man; candidates near them are rejected.
+    /// runners; candidates near them are rejected.
     pub fn drip(&mut self, rng: &mut Rng, players: &[IVec2], dt: f32) -> Vec<(IVec2, PelletKind)> {
         self.drip_carry += DRIP_PER_SEC * dt;
         let mut spawned = Vec::new();

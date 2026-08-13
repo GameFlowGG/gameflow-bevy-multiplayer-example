@@ -8,8 +8,8 @@ use bevy::input::keyboard::{Key, KeyboardInput};
 use bevy::input::ButtonState;
 use bevy::prelude::*;
 
-use pacman_shared::difficulty::Difficulty;
-use pacman_shared::sim::PacState;
+use ghostchase_shared::difficulty::Difficulty;
+use ghostchase_shared::sim::RunnerState;
 
 use crate::backend::{Backend, Reply, Request, Session};
 use crate::identity;
@@ -163,7 +163,7 @@ fn line(text: impl Into<String>, size: f32, colour: Color) -> impl Bundle {
 
 fn show_nick(mut commands: Commands) {
     commands.spawn(panel()).with_children(|p| {
-        p.spawn(line("PAC-MAN 1v1", 52.0, ACCENT));
+        p.spawn(line("GHOST CHASE 1v1", 52.0, ACCENT));
         p.spawn(line("what's your name?", 22.0, DIM));
         p.spawn((line("_", 34.0, FG), StatusText));
         p.spawn(line("type your name and press enter", 16.0, DIM));
@@ -231,7 +231,7 @@ fn show_menu(mut commands: Commands, session: Res<Session>, rating: Res<Rating>,
     };
 
     commands.spawn(panel()).with_children(|p| {
-        p.spawn(line("PAC-MAN 1v1", 52.0, ACCENT));
+        p.spawn(line("GHOST CHASE 1v1", 52.0, ACCENT));
         p.spawn(line(format!("hi {}", session.nick), 24.0, FG));
         p.spawn(line(rank, 18.0, DIM));
         p.spawn(line("ENTER to find an opponent", 26.0, FG));
@@ -383,7 +383,7 @@ fn update_waiting(
 ) {
     let out = game
         .as_ref()
-        .map(|g| g.states[g.slot as usize] == PacState::Out)
+        .map(|g| g.states[g.slot as usize] == RunnerState::Out)
         .unwrap_or(false);
 
     match (out, banner.single()) {

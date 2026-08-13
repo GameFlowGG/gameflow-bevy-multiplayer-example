@@ -1,6 +1,6 @@
-//! Pac-Man 1v1 client.
+//! Ghost Chase 1v1 client.
 //!
-//! A desktop Bevy app. It renders the maze, predicts its own Pac-Man and sends
+//! A desktop Bevy app. It renders the maze, predicts its own runner and sends
 //! one thing over the wire: the direction the player wants to go. It never
 //! reports a score, and it never holds a GameFlow key. Everything it needs from
 //! the platform comes through our own backend.
@@ -34,17 +34,17 @@ pub enum Screen {
 
 fn main() {
     let backend_url =
-        std::env::var("PACMAN_BACKEND_URL").unwrap_or_else(|_| DEFAULT_BACKEND.to_string());
+        std::env::var("GHOSTCHASE_BACKEND_URL").unwrap_or_else(|_| DEFAULT_BACKEND.to_string());
 
-    let width = pacman_shared::MAZE_W as f32 * TILE;
-    let height = pacman_shared::MAZE_H as f32 * TILE + 60.0;
+    let width = ghostchase_shared::MAZE_W as f32 * TILE;
+    let height = ghostchase_shared::MAZE_H as f32 * TILE + 60.0;
 
     App::new()
         .add_plugins(
             DefaultPlugins
                 .set(WindowPlugin {
                     primary_window: Some(Window {
-                        title: "Pac-Man 1v1".into(),
+                        title: "Ghost Chase 1v1".into(),
                         resolution: WindowResolution::new(width as u32, height as u32),
                         resizable: false,
                         ..default()
@@ -55,7 +55,7 @@ fn main() {
         )
         // The simulation rate is fixed and shared with the server. Prediction
         // has to step at exactly the same rate or it would drift by design.
-        .insert_resource(Time::<Fixed>::from_hz(pacman_shared::TICK_HZ as f64))
+        .insert_resource(Time::<Fixed>::from_hz(ghostchase_shared::TICK_HZ as f64))
         .insert_resource(ClearColor(Color::srgb(0.04, 0.04, 0.07)))
         .init_state::<Screen>()
         .add_plugins(backend::BackendPlugin { base_url: backend_url })

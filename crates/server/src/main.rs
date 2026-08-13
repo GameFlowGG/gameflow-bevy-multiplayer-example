@@ -1,4 +1,4 @@
-//! Pac-Man 1v1 dedicated server.
+//! Ghost Chase 1v1 dedicated server.
 //!
 //! Headless Bevy. It connects to GameFlow, binds the port it was given, runs
 //! the authoritative simulation at a fixed 30Hz, reports the result through its

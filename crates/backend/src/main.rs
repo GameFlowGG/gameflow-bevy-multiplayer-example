@@ -1,4 +1,4 @@
-//! Pac-Man 1v1 backend.
+//! Ghost Chase 1v1 backend.
 //!
 //! The only process that holds the GameFlow API key. The desktop client and the
 //! dedicated game server both go through here; neither of them ever sees the
@@ -70,7 +70,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         game_id = config.game_id,
         game_mode = config.game_mode,
         region = config.region,
-        "starting pacman backend"
+        "starting Ghost Chase backend"
     );
 
     let state = AppState {

@@ -1,12 +1,12 @@
 //! The difficulty curve.
 //!
 //! One step every 30 seconds. The curve is deliberately lethal: from step 3
-//! onward ghosts are faster than Pac-Man, so an endless mode still ends. That
+//! onward ghosts are faster than the runner, so an endless mode still ends. That
 //! bounds a match to roughly four or five minutes, which is what keeps a
 //! dedicated server from being held forever and keeps the queue moving.
 
-/// Pac-Man never speeds up or slows down.
-pub const PACMAN_SPEED: f32 = 8.0;
+/// The runner never speeds up or slows down.
+pub const RUNNER_SPEED: f32 = 8.0;
 /// Ghost speed before the difficulty multiplier.
 pub const GHOST_BASE_SPEED: f32 = 6.5;
 /// Frightened ghosts crawl.
@@ -95,11 +95,11 @@ mod tests {
     }
 
     #[test]
-    fn ghosts_outrun_pacman_from_step_three_on() {
-        assert!(Difficulty::at(0.0).ghost_speed() < PACMAN_SPEED);
-        assert!(Difficulty::at(60.0).ghost_speed() < PACMAN_SPEED);
+    fn ghosts_outrun_the_runner_from_step_three_on() {
+        assert!(Difficulty::at(0.0).ghost_speed() < RUNNER_SPEED);
+        assert!(Difficulty::at(60.0).ghost_speed() < RUNNER_SPEED);
         assert!(
-            Difficulty::at(90.0).ghost_speed() > PACMAN_SPEED,
+            Difficulty::at(90.0).ghost_speed() > RUNNER_SPEED,
             "the mode must turn lethal at 1:30"
         );
     }

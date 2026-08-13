@@ -11,12 +11,12 @@ use jsonwebtoken::{Algorithm, DecodingKey, Validation};
 use renet::ClientId;
 use serde::Deserialize;
 
-use pacman_shared::protocol::{
-    decode, encode, ClientMsg, GhostSnap, PacSnap, PelletDelta, ServerMsg, Snapshot, CH_EVENT,
+use ghostchase_shared::protocol::{
+    decode, encode, ClientMsg, GhostSnap, RunnerSnap, PelletDelta, ServerMsg, Snapshot, CH_EVENT,
     CH_INPUT, CH_SNAPSHOT, PROTOCOL_VERSION,
 };
-use pacman_shared::sim::{MatchPhase, Sim};
-use pacman_shared::TICK_DT;
+use ghostchase_shared::sim::{MatchPhase, Sim};
+use ghostchase_shared::TICK_DT;
 
 use crate::gameflow_plugin::GameFlowClient;
 use crate::roster::Roster;
@@ -192,7 +192,7 @@ pub struct SessionPlugin;
 
 impl Plugin for SessionPlugin {
     fn build(&self, app: &mut App) {
-        app.insert_resource(Time::<Fixed>::from_hz(pacman_shared::TICK_HZ as f64))
+        app.insert_resource(Time::<Fixed>::from_hz(ghostchase_shared::TICK_HZ as f64))
             .add_observer(on_connection_event)
             .add_systems(Update, (adopt_payload, receive_messages).chain())
             .add_systems(FixedUpdate, (start_when_ready, advance_match).chain());
@@ -381,9 +381,9 @@ fn advance_match(mut server: Option<ResMut<RenetServer>>, session: Option<ResMut
     }
 
     let now = session.sim.elapsed;
-    let pacmen = [
-        pac_snap(&session.sim, 0, now),
-        pac_snap(&session.sim, 1, now),
+    let runners = [
+        runner_snap(&session.sim, 0, now),
+        runner_snap(&session.sim, 1, now),
     ];
     let ghosts: Vec<GhostSnap> = session
         .sim
@@ -402,7 +402,7 @@ fn advance_match(mut server: Option<ResMut<RenetServer>>, session: Option<ResMut
             tick: session.sim.tick_count,
             elapsed_ms: (now * 1000.0) as u32,
             last_processed_seq: session.last_seq[slot as usize],
-            pacmen: pacmen.clone(),
+            runners: runners.clone(),
             ghosts: ghosts.clone(),
             pellet_deltas: deltas.clone(),
         };
@@ -412,7 +412,7 @@ fn advance_match(mut server: Option<ResMut<RenetServer>>, session: Option<ResMut
     }
 
     if let MatchPhase::Finished { winner } = session.sim.phase {
-        let scores = [session.sim.pacmen[0].score, session.sim.pacmen[1].score];
+        let scores = [session.sim.runners[0].score, session.sim.runners[1].score];
         info!("match over: {scores:?}, winner {winner:?}");
         if let Ok(bytes) = encode(&ServerMsg::MatchOver { scores, winner }) {
             for client_id in server.clients_id() {
@@ -422,9 +422,9 @@ fn advance_match(mut server: Option<ResMut<RenetServer>>, session: Option<ResMut
     }
 }
 
-fn pac_snap(sim: &Sim, slot: usize, now: f32) -> PacSnap {
-    let p = &sim.pacmen[slot];
-    PacSnap {
+fn runner_snap(sim: &Sim, slot: usize, now: f32) -> RunnerSnap {
+    let p = &sim.runners[slot];
+    RunnerSnap {
         pos: p.pos,
         state: p.state,
         lives: p.lives,

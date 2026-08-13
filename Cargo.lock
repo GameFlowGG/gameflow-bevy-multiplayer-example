@@ -2348,6 +2348,66 @@ dependencies = [
 ]
 
 [[package]]
+name = "ghostchase-backend"
+version = "0.1.0"
+dependencies = [
+ "axum",
+ "jsonwebtoken",
+ "rand 0.9.5",
+ "reqwest 0.12.28",
+ "serde",
+ "serde_json",
+ "thiserror 2.0.19",
+ "tokio",
+ "tower-http",
+ "tracing",
+ "tracing-subscriber",
+]
+
+[[package]]
+name = "ghostchase-client"
+version = "0.1.0"
+dependencies = [
+ "bevy",
+ "bevy_renet",
+ "crossbeam-channel",
+ "ghostchase-shared",
+ "renet",
+ "renet_netcode",
+ "reqwest 0.12.28",
+ "serde",
+ "serde_json",
+ "tokio",
+]
+
+[[package]]
+name = "ghostchase-server"
+version = "0.1.0"
+dependencies = [
+ "bevy",
+ "bevy_renet",
+ "crossbeam-channel",
+ "gameflow-gameserver-sdk",
+ "ghostchase-shared",
+ "jsonwebtoken",
+ "renet",
+ "renet_netcode",
+ "reqwest 0.12.28",
+ "serde",
+ "serde_json",
+ "tokio",
+]
+
+[[package]]
+name = "ghostchase-shared"
+version = "0.1.0"
+dependencies = [
+ "glam",
+ "postcard",
+ "serde",
+]
+
+[[package]]
 name = "glam"
 version = "0.32.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3562,66 +3622,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b7d950ca161dc355eaf28f82b11345ed76c6e1f6eb1f4f4479e0323b9e2fbd0e"
 dependencies = [
  "num-traits",
-]
-
-[[package]]
-name = "pacman-backend"
-version = "0.1.0"
-dependencies = [
- "axum",
- "jsonwebtoken",
- "rand 0.9.5",
- "reqwest 0.12.28",
- "serde",
- "serde_json",
- "thiserror 2.0.19",
- "tokio",
- "tower-http",
- "tracing",
- "tracing-subscriber",
-]
-
-[[package]]
-name = "pacman-client"
-version = "0.1.0"
-dependencies = [
- "bevy",
- "bevy_renet",
- "crossbeam-channel",
- "pacman-shared",
- "renet",
- "renet_netcode",
- "reqwest 0.12.28",
- "serde",
- "serde_json",
- "tokio",
-]
-
-[[package]]
-name = "pacman-server"
-version = "0.1.0"
-dependencies = [
- "bevy",
- "bevy_renet",
- "crossbeam-channel",
- "gameflow-gameserver-sdk",
- "jsonwebtoken",
- "pacman-shared",
- "renet",
- "renet_netcode",
- "reqwest 0.12.28",
- "serde",
- "serde_json",
- "tokio",
-]
-
-[[package]]
-name = "pacman-shared"
-version = "0.1.0"
-dependencies = [
- "glam",
- "postcard",
- "serde",
 ]
 
 [[package]]

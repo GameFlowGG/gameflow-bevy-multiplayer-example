@@ -1,6 +1,6 @@
 //! Client side prediction, reconciliation and interpolation.
 //!
-//! Only the local Pac-Man is predicted. Ghosts, pellets and the rival arrive as
+//! Only the local runner is predicted. Ghosts, pellets and the rival arrive as
 //! authoritative state and are interpolated between snapshots. That asymmetry
 //! is the whole reason this file is short: the client never has to reproduce
 //! ghost AI or the pellet drip, so there is no shared RNG to keep in step and
@@ -13,9 +13,9 @@
 use std::collections::VecDeque;
 
 use bevy::math::Vec2;
-use pacman_shared::difficulty::PACMAN_SPEED;
-use pacman_shared::movement::{Dir, GridPos, Mover};
-use pacman_shared::TICK_DT;
+use ghostchase_shared::difficulty::RUNNER_SPEED;
+use ghostchase_shared::movement::{Dir, GridPos, Mover};
+use ghostchase_shared::TICK_DT;
 
 /// The local player's predicted state.
 #[derive(Debug, Clone)]
@@ -46,7 +46,7 @@ impl Local {
         self.next_seq += 1;
         self.pending.push_back((seq, dir));
         self.pos
-            .advance(Some(dir), Mover::Pacman, PACMAN_SPEED, TICK_DT);
+            .advance(Some(dir), Mover::Runner, RUNNER_SPEED, TICK_DT);
         seq
     }
 
@@ -66,7 +66,7 @@ impl Local {
         self.pos = authoritative;
         for (_, dir) in self.pending.iter() {
             self.pos
-                .advance(Some(*dir), Mover::Pacman, PACMAN_SPEED, TICK_DT);
+                .advance(Some(*dir), Mover::Runner, RUNNER_SPEED, TICK_DT);
         }
 
         self.last_correction = (before - self.pos.world()).length();
@@ -137,7 +137,7 @@ impl Interp {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use pacman_shared::maze::SPAWN_P0;
+    use ghostchase_shared::maze::SPAWN_P0;
 
     fn start() -> GridPos {
         GridPos::new(SPAWN_P0, Dir::Right)
@@ -146,7 +146,7 @@ mod tests {
     /// Replays the same inputs the way the server would.
     fn server_would(mut pos: GridPos, dir: Dir, steps: usize) -> GridPos {
         for _ in 0..steps {
-            pos.advance(Some(dir), Mover::Pacman, PACMAN_SPEED, TICK_DT);
+            pos.advance(Some(dir), Mover::Runner, RUNNER_SPEED, TICK_DT);
         }
         pos
     }
@@ -235,7 +235,7 @@ mod tests {
         for _ in 0..5 {
             local.push_and_apply(Dir::Right);
         }
-        let elsewhere = GridPos::new(pacman_shared::maze::SPAWN_P1, Dir::Left);
+        let elsewhere = GridPos::new(ghostchase_shared::maze::SPAWN_P1, Dir::Left);
         local.force(elsewhere);
 
         assert!(local.pending.is_empty());

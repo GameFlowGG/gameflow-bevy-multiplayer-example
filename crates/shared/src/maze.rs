@@ -37,17 +37,17 @@ pub const SCATTER_CORNERS: [IVec2; 7] = [
 pub enum Tile {
     Wall,
     Corridor,
-    /// Inside the ghost house. Ghosts may walk here, Pac-Man may not.
+    /// Inside the ghost house. Ghosts may walk here, the runner may not.
     House,
-    /// The house door. Ghosts cross it, Pac-Man may not.
+    /// The house door. Ghosts cross it, the runner may not.
     Door,
     /// Outside the playfield.
     Void,
 }
 
 impl Tile {
-    /// Whether a Pac-Man may occupy this tile.
-    pub const fn walkable_by_pacman(self) -> bool {
+    /// Whether a runner may occupy this tile.
+    pub const fn walkable_by_runner(self) -> bool {
         matches!(self, Tile::Corridor)
     }
 
@@ -131,8 +131,8 @@ impl Maze {
         IVec2::new(pos.x.rem_euclid(w), pos.y)
     }
 
-    pub fn walkable_by_pacman(&self, pos: IVec2) -> bool {
-        self.at(self.wrap(pos)).walkable_by_pacman()
+    pub fn walkable_by_runner(&self, pos: IVec2) -> bool {
+        self.at(self.wrap(pos)).walkable_by_runner()
     }
 
     pub fn walkable_by_ghost(&self, pos: IVec2) -> bool {
@@ -197,8 +197,8 @@ mod tests {
 
     #[test]
     fn tunnel_row_is_open_on_both_edges() {
-        assert!(MAZE.walkable_by_pacman(IVec2::new(0, TUNNEL_ROW)));
-        assert!(MAZE.walkable_by_pacman(IVec2::new(MAZE_W as i32 - 1, TUNNEL_ROW)));
+        assert!(MAZE.walkable_by_runner(IVec2::new(0, TUNNEL_ROW)));
+        assert!(MAZE.walkable_by_runner(IVec2::new(MAZE_W as i32 - 1, TUNNEL_ROW)));
     }
 
     #[test]
@@ -214,13 +214,13 @@ mod tests {
     fn other_rows_do_not_wrap() {
         let off = IVec2::new(-1, 5);
         assert_eq!(MAZE.wrap(off), off);
-        assert!(!MAZE.walkable_by_pacman(off));
+        assert!(!MAZE.walkable_by_runner(off));
     }
 
     #[test]
     fn spawns_are_walkable_and_far_apart() {
-        assert!(MAZE.walkable_by_pacman(SPAWN_P0));
-        assert!(MAZE.walkable_by_pacman(SPAWN_P1));
+        assert!(MAZE.walkable_by_runner(SPAWN_P0));
+        assert!(MAZE.walkable_by_runner(SPAWN_P1));
         assert!(
             chebyshev(SPAWN_P0, SPAWN_P1) >= 10,
             "spawns must not start on top of each other"
@@ -228,17 +228,17 @@ mod tests {
     }
 
     #[test]
-    fn pacman_cannot_enter_the_ghost_house() {
-        assert!(!MAZE.walkable_by_pacman(GHOST_HOUSE));
+    fn runner_cannot_enter_the_ghost_house() {
+        assert!(!MAZE.walkable_by_runner(GHOST_HOUSE));
         assert!(MAZE.walkable_by_ghost(GHOST_HOUSE));
         assert!(MAZE.walkable_by_ghost(IVec2::new(13, 12)));
-        assert!(!MAZE.walkable_by_pacman(IVec2::new(13, 12)));
+        assert!(!MAZE.walkable_by_runner(IVec2::new(13, 12)));
     }
 
     #[test]
     fn the_ghost_door_leads_to_a_corridor() {
         assert!(MAZE.walkable_by_ghost(GHOST_DOOR));
-        assert!(MAZE.walkable_by_pacman(GHOST_DOOR));
+        assert!(MAZE.walkable_by_runner(GHOST_DOOR));
     }
 
     /// Regression: the first layout sealed the ghost house, so every ghost
@@ -277,7 +277,7 @@ mod tests {
         while let Some(cur) = stack.pop() {
             for d in [IVec2::X, IVec2::NEG_X, IVec2::Y, IVec2::NEG_Y] {
                 let next = MAZE.wrap(cur + d);
-                if MAZE.walkable_by_pacman(next) && seen.insert(next) {
+                if MAZE.walkable_by_runner(next) && seen.insert(next) {
                     stack.push(next);
                 }
             }

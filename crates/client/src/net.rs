@@ -12,15 +12,15 @@ use bevy_renet::netcode::{ClientAuthentication, NetcodeClientPlugin, NetcodeClie
 use bevy_renet::{RenetClient, RenetClientPlugin};
 use renet::{ChannelConfig, ConnectionConfig, SendType};
 
-use pacman_shared::ghosts::GhostMode;
-use pacman_shared::maze::{SPAWN_P0, SPAWN_P1};
-use pacman_shared::movement::{Dir, GridPos};
-use pacman_shared::pellets::PelletField;
-use pacman_shared::protocol::{
+use ghostchase_shared::ghosts::GhostMode;
+use ghostchase_shared::maze::{SPAWN_P0, SPAWN_P1};
+use ghostchase_shared::movement::{Dir, GridPos};
+use ghostchase_shared::pellets::PelletField;
+use ghostchase_shared::protocol::{
     decode, encode, ClientMsg, PelletDelta, ServerMsg, CH_EVENT, CH_INPUT, CH_SNAPSHOT,
     PROTOCOL_VERSION,
 };
-use pacman_shared::sim::PacState;
+use ghostchase_shared::sim::RunnerState;
 
 use crate::identity::client_id_of;
 use crate::predict::{Interp, Local};
@@ -69,7 +69,7 @@ pub struct Match {
     pub pellets: PelletField,
     pub scores: [u32; 2],
     pub lives: [u8; 2],
-    pub states: [PacState; 2],
+    pub states: [RunnerState; 2],
     pub energized: [bool; 2],
     pub stunned: [bool; 2],
     pub nicks: [String; 2],
@@ -99,7 +99,7 @@ impl Match {
             pellets,
             scores: [0, 0],
             lives: [3, 3],
-            states: [PacState::Alive, PacState::Alive],
+            states: [RunnerState::Alive, RunnerState::Alive],
             energized: [false, false],
             stunned: [false, false],
             nicks,
@@ -129,7 +129,7 @@ pub struct Desired(pub Option<Dir>);
 ///
 /// Without this the client re-sends `Hello` every frame until the `Welcome`
 /// lands, and the server mints a fresh `Welcome` for each one. Those extra
-/// welcomes used to re-enter `Playing` and spawn a second Pac-Man, which then
+/// welcomes used to re-enter `Playing` and spawn a second runner, which then
 /// froze the board because the placement query expects exactly one.
 #[derive(Resource, Default)]
 struct Handshake {
@@ -228,10 +228,10 @@ fn send_input(
     if game.result.is_some() {
         return;
     }
-    // A stunned or dead Pac-Man does not move, and predicting otherwise would
+    // A stunned or dead runner does not move, and predicting otherwise would
     // guarantee a correction on the next snapshot.
     let slot = game.slot as usize;
-    if game.stunned[slot] || game.states[slot] != PacState::Alive {
+    if game.stunned[slot] || game.states[slot] != RunnerState::Alive {
         return;
     }
 
@@ -313,7 +313,7 @@ fn receive(
 
     // Only the newest snapshot matters. Unreliable delivery can reorder, and
     // applying a stale world after a fresh one would visibly rewind everything.
-    let mut newest: Option<pacman_shared::protocol::Snapshot> = None;
+    let mut newest: Option<ghostchase_shared::protocol::Snapshot> = None;
     while let Some(bytes) = client.receive_message(CH_SNAPSHOT) {
         if let Ok(ServerMsg::Snapshot(snap)) = decode::<ServerMsg>(&bytes) {
             let keep = newest.as_ref().map(|n| snap.tick > n.tick).unwrap_or(true);
@@ -329,30 +329,30 @@ fn receive(
     apply_snapshot(game, snap);
 }
 
-fn apply_snapshot(game: &mut Match, snap: pacman_shared::protocol::Snapshot) {
+fn apply_snapshot(game: &mut Match, snap: ghostchase_shared::protocol::Snapshot) {
     let slot = game.slot as usize;
     let rival = game.rival_slot();
 
     game.elapsed_ms = snap.elapsed_ms;
     for i in 0..2 {
-        game.scores[i] = snap.pacmen[i].score;
-        game.lives[i] = snap.pacmen[i].lives;
-        game.states[i] = snap.pacmen[i].state;
-        game.energized[i] = snap.pacmen[i].energized;
-        game.stunned[i] = snap.pacmen[i].stunned;
+        game.scores[i] = snap.runners[i].score;
+        game.lives[i] = snap.runners[i].lives;
+        game.states[i] = snap.runners[i].state;
+        game.energized[i] = snap.runners[i].energized;
+        game.stunned[i] = snap.runners[i].stunned;
     }
 
     // Anything the client could not have predicted, such as dying or being
     // stunned, means the prediction is worthless: take the server's word.
-    let authoritative = snap.pacmen[slot].pos;
-    if snap.pacmen[slot].state != PacState::Alive || snap.pacmen[slot].stunned {
+    let authoritative = snap.runners[slot].pos;
+    if snap.runners[slot].state != RunnerState::Alive || snap.runners[slot].stunned {
         game.local.force(authoritative);
     } else {
         game.local.reconcile(snap.last_processed_seq, authoritative);
     }
 
-    game.remote_pos = snap.pacmen[rival].pos;
-    let world = snap.pacmen[rival].pos.world();
+    game.remote_pos = snap.runners[rival].pos;
+    let world = snap.runners[rival].pos.world();
     game.remote.push(Vec2::new(world.x, world.y));
 
     while game.ghosts.len() < snap.ghosts.len() {

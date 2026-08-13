@@ -1,5 +1,5 @@
 [package]
-name = "pacman-backend"
+name = "ghostchase-backend"
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true

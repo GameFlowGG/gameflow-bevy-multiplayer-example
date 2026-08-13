@@ -12,7 +12,7 @@ use std::path::{Path, PathBuf};
 
 use serde::{Deserialize, Serialize};
 
-const DIR_NAME: &str = "pacman-1v1";
+const DIR_NAME: &str = "ghost-chase-1v1";
 const FILE_NAME: &str = "identity.json";
 
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
@@ -32,7 +32,7 @@ impl Identity {
     }
 }
 
-/// `$XDG_CONFIG_HOME/pacman-1v1/identity.json`, falling back to `$HOME/.config`
+/// `$XDG_CONFIG_HOME/ghost-chase-1v1/identity.json`, falling back to `$HOME/.config`
 /// and finally to the working directory. Resolved without pulling a crate in
 /// for three lines of path joining.
 pub fn identity_path() -> PathBuf {
@@ -86,7 +86,7 @@ mod tests {
     use super::*;
 
     fn temp_path(name: &str) -> PathBuf {
-        std::env::temp_dir().join(format!("pacman-identity-{name}.json"))
+        std::env::temp_dir().join(format!("ghostchase-identity-{name}.json"))
     }
 
     #[test]

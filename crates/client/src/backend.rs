@@ -263,7 +263,7 @@ impl Plugin for BackendPlugin {
         let runtime = tokio::runtime::Builder::new_multi_thread()
             .enable_all()
             .worker_threads(1)
-            .thread_name("pacman-backend")
+            .thread_name("ghostchase-backend")
             .build()
             .expect("building the backend runtime");
 

@@ -1,11 +1,11 @@
 [package]
-name = "pacman-client"
+name = "ghostchase-client"
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true
 license.workspace = true
 
-# The player app. It renders, it predicts its own Pac-Man, and it sends one
+# The player app. It renders, it predicts its own runner, and it sends one
 # thing over the wire: the direction it wants to go. It never reports a score
 # and it never sees a GameFlow API key.
 #
@@ -13,7 +13,7 @@ license.workspace = true
 # wayland stays out of the build: the headless server shares this dependency
 # graph and has no business linking a compositor.
 [dependencies]
-pacman-shared = { workspace = true }
+ghostchase-shared = { workspace = true }
 
 bevy = { workspace = true, features = [
     "std",

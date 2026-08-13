@@ -9,7 +9,7 @@ set -euo pipefail
 
 cd "$(dirname "$0")/.."
 
-OUT="${1:-pacman-server.zip}"
+OUT="${1:-ghostchase-server.zip}"
 
 if [[ ! -f Dockerfile ]]; then
     echo "no Dockerfile at the repo root, the build would fall back to an engine template" >&2

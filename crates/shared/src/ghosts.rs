@@ -5,7 +5,7 @@
 //! personality system: the movement code underneath is identical for all of
 //! them.
 //!
-//! With two Pac-Man on the board a ghost hunts whichever live one is nearest.
+//! With two runners on the board a ghost hunts whichever live one is nearest.
 //! When only one is left, every ghost converges on the survivor, which is what
 //! stops an empty maze from being a reward for outlasting your rival.
 
@@ -56,9 +56,9 @@ impl Personality {
     }
 }
 
-/// What a ghost knows about a Pac-Man when choosing a target.
+/// What a ghost knows about a runner when choosing a target.
 #[derive(Debug, Clone, Copy)]
-pub struct PacTarget {
+pub struct RunnerTarget {
     pub tile: IVec2,
     pub dir: Dir,
     pub alive: bool,
@@ -97,7 +97,7 @@ impl Ghost {
     }
 
     /// Where this ghost wants to be right now.
-    pub fn target(&self, pacmen: &[PacTarget], red_tile: IVec2) -> IVec2 {
+    pub fn target(&self, runners: &[RunnerTarget], red_tile: IVec2) -> IVec2 {
         if self.mode == GhostMode::Eaten {
             return GHOST_HOUSE;
         }
@@ -108,7 +108,7 @@ impl Ghost {
             return self.scatter_corner;
         }
 
-        let Some(prey) = self.nearest_live(pacmen) else {
+        let Some(prey) = self.nearest_live(runners) else {
             return self.scatter_corner;
         };
 
@@ -129,8 +129,8 @@ impl Ghost {
         }
     }
 
-    fn nearest_live(&self, pacmen: &[PacTarget]) -> Option<PacTarget> {
-        pacmen
+    fn nearest_live(&self, runners: &[RunnerTarget]) -> Option<RunnerTarget> {
+        runners
             .iter()
             .filter(|p| p.alive)
             .min_by_key(|p| chebyshev(self.pos.tile, p.tile))
@@ -261,7 +261,7 @@ impl Ghost {
         self.mode = GhostMode::Eaten;
     }
 
-    /// Sent back to the pen without being eaten, after a Pac-Man dies.
+    /// Sent back to the pen without being eaten, after a runner dies.
     pub fn reset_to_house(&mut self) {
         self.pos = GridPos::new(GHOST_HOUSE, Dir::Up);
         self.mode = GhostMode::Scatter;
@@ -291,8 +291,8 @@ mod tests {
         g
     }
 
-    fn live(tile: IVec2, dir: Dir) -> PacTarget {
-        PacTarget {
+    fn live(tile: IVec2, dir: Dir) -> RunnerTarget {
+        RunnerTarget {
             tile,
             dir,
             alive: true,
@@ -300,7 +300,7 @@ mod tests {
     }
 
     #[test]
-    fn red_targets_the_nearest_pacman_tile() {
+    fn red_targets_the_nearest_runner_tile() {
         let g = ghost_at(Personality::Red, IVec2::new(1, 1));
         let near = live(IVec2::new(3, 1), Dir::Right);
         let far = live(IVec2::new(20, 20), Dir::Left);
@@ -336,9 +336,9 @@ mod tests {
     }
 
     #[test]
-    fn dead_pacmen_are_never_targeted() {
+    fn dead_runners_are_never_targeted() {
         let g = ghost_at(Personality::Red, IVec2::new(1, 1));
-        let dead = PacTarget {
+        let dead = RunnerTarget {
             tile: IVec2::new(2, 1),
             dir: Dir::Up,
             alive: false,
@@ -354,7 +354,7 @@ mod tests {
     }
 
     #[test]
-    fn scatter_mode_ignores_pacman_entirely() {
+    fn scatter_mode_ignores_the_runner_entirely() {
         let mut g = ghost_at(Personality::Red, IVec2::new(1, 1));
         g.mode = GhostMode::Scatter;
         let p = live(IVec2::new(3, 1), Dir::Up);

@@ -15,7 +15,7 @@ use crossbeam_channel::{Receiver, Sender};
 use serde::Serialize;
 use tokio::runtime::Runtime;
 
-use pacman_shared::sim::MatchPhase;
+use ghostchase_shared::sim::MatchPhase;
 
 use crate::gameflow_plugin::GameFlowClient;
 use crate::session::Session;
@@ -60,7 +60,7 @@ impl Plugin for ReportPlugin {
         let runtime = tokio::runtime::Builder::new_multi_thread()
             .enable_all()
             .worker_threads(1)
-            .thread_name("pacman-report")
+            .thread_name("ghostchase-report")
             .build()
             .expect("building the reporting runtime");
 
@@ -115,7 +115,7 @@ fn send_result_when_finished(
         .map(|slot| ResultPlayer {
             player_id: session.slots[slot].player_id.clone(),
             nick: session.slots[slot].nick.clone(),
-            score: session.sim.pacmen[slot].score,
+            score: session.sim.runners[slot].score,
             present: session.slots[slot].ever_present,
         })
         .collect();

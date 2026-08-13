@@ -72,12 +72,12 @@ mod tests {
 
     #[test]
     fn a_missing_variable_names_itself() {
-        let err = required("PACMAN_DEFINITELY_NOT_SET").unwrap_err();
-        assert_eq!(err.to_string(), "missing required environment variable PACMAN_DEFINITELY_NOT_SET");
+        let err = required("GHOSTCHASE_DEFINITELY_NOT_SET").unwrap_err();
+        assert_eq!(err.to_string(), "missing required environment variable GHOSTCHASE_DEFINITELY_NOT_SET");
     }
 
     #[test]
     fn optional_falls_back() {
-        assert_eq!(optional("PACMAN_DEFINITELY_NOT_SET", "fallback"), "fallback");
+        assert_eq!(optional("GHOSTCHASE_DEFINITELY_NOT_SET", "fallback"), "fallback");
     }
 }

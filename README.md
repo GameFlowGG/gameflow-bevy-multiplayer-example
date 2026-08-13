@@ -1,16 +1,16 @@
-# GameFlow Bevy Multiplayer Example: Pac-Man 1v1
+# GameFlow Bevy Multiplayer Example: Ghost Chase 1v1
 
 A working example of wiring a real-time multiplayer game to
 [GameFlow](https://gameflow.gg): a dedicated game server per match, queue
-matchmaking, and skill rating. The game is a Pac-Man 1v1 duel written in Rust
-with [Bevy](https://bevy.org); the interesting part is the integration shape, not
-the maze.
+matchmaking, and skill rating. The game, Ghost Chase, is a 1v1 maze duel written
+in Rust with [Bevy](https://bevy.org); the interesting part is the integration
+shape, not the maze.
 
 If you are building your own game on GameFlow, this repo is the shape to copy:
 where the API key lives, how the server reports results, how the client reaches
 the platform, and what you configure in the dashboard.
 
-> **How it plays (briefly):** two Pac-Man share one maze and race for the same
+> **How it plays (briefly):** two runners share one maze and race for the same
 > pellets. Difficulty rises on a clock until the ghosts turn lethal, so a match
 > lasts a few minutes. The power pellet lets you eat your rival and steal score.
 > Higher score when both players are out wins.
@@ -23,7 +23,7 @@ game.
 
 | Piece | Crate | What it is | Holds the API key? |
 |---|---|---|---|
-| **Game client** | `client` | the desktop app: renders, predicts its own Pac-Man, talks only to your backend | no |
+| **Game client** | `client` | the desktop app: renders, predicts its own runner, talks only to your backend | no |
 | **Backend (BFF)** | `backend` | a thin `axum` server you host; the only holder of the GameFlow API key. Brokers every GameFlow call for client and server | **yes** |
 | **Game server** | `server` | headless Bevy authority, packaged and run **by GameFlow** (allocated per match) | no |
 | **Simulation** | `shared` | the whole game as plain Rust (maze, movement, ghosts, pellets, scoring, wire protocol); no Bevy, no networking | n/a |
@@ -33,7 +33,7 @@ client never sees it, and the server reports its result back *through* the backe
 instead of calling the platform itself.
 
 **Netcode.** The server runs the whole simulation at a fixed 30Hz and is the only
-authority. The client predicts nothing but its own Pac-Man and interpolates
+authority. The client predicts nothing but its own runner and interpolates
 everything else. Because grid movement is exact, replaying an input lands in the
 same place on both ends, so reconciliation normally corrects nothing. A full
 snapshot is ~150 bytes, so there is no delta compression.
@@ -71,18 +71,18 @@ needs no platform change. Produce the zip and upload it (see
 [GameFlow setup](#gameflow-setup)):
 
 ```bash
-scripts/package-server.sh          # writes pacman-server.zip (excludes .env, target, etc.)
+scripts/package-server.sh          # writes ghostchase-server.zip (excludes .env, target, etc.)
 ```
 
 The Dockerfile is a multi-stage build with `cargo-chef`, so a code change does not
 recompile Bevy from scratch every time. To sanity-check it compiles locally:
-`cargo build -p pacman-server --release`.
+`cargo build -p ghostchase-server --release`.
 
 ### Backend (BFF): you host this
 
 ```bash
 cp crates/backend/.env.example crates/backend/.env   # then fill it in (see below)
-cargo build -p pacman-backend --release              # binary at target/release/pacman-backend
+cargo build -p ghostchase-backend --release          # binary at target/release/ghostchase-backend
 ```
 
 Run it anywhere reachable by your players' clients. It listens on `PORT` (default
@@ -91,7 +91,7 @@ Run it anywhere reachable by your players' clients. It listens on `PORT` (defaul
 ### Client: each player builds and runs it
 
 ```bash
-cargo build -p pacman-client --release               # binary at target/release/pacman-client
+cargo build -p ghostchase-client --release           # binary at target/release/ghostchase-client
 ```
 
 Bevy needs a GPU and a windowing stack. On Debian/Ubuntu, install the runtime
@@ -108,7 +108,7 @@ What you configure once in the dashboard for the platform side to work.
 1. **Create the game** and generate an org-scoped **API key**
    (Settings → API keys). It goes only in the backend's `.env`.
 2. **Upload the server build**: run `scripts/package-server.sh` and upload
-   `pacman-server.zip`. Confirm it landed:
+   `ghostchase-server.zip`. Confirm it landed:
    `GET /v1/images/builds?game_id=<id>` → `status: success`, `isCurrent: true`.
 3. **Matchmaker** (required for the queue), published for game mode `1v1`:
    ```
@@ -136,10 +136,10 @@ two: the **backend** (hosted) and the **client** (desktop).
 ```bash
 # 1. Backend. Fill crates/backend/.env with your GameFlow credentials first.
 set -a && . crates/backend/.env && set +a
-cargo run -p pacman-backend                          # or run the release binary
+cargo run -p ghostchase-backend                 # or run the release binary
 
-# 2. Client — point it at your backend with PACMAN_BACKEND_URL.
-PACMAN_BACKEND_URL=http://127.0.0.1:8080 cargo run -p pacman-client
+# 2. Client — point it at your backend with GHOSTCHASE_BACKEND_URL.
+GHOSTCHASE_BACKEND_URL=http://127.0.0.1:8080 cargo run -p ghostchase-client
 ```
 
 A 1v1 needs two clients. On two separate machines, just run the command above on
@@ -149,13 +149,13 @@ be matched against each other:
 
 ```bash
 # player 1
-XDG_CONFIG_HOME=/tmp/pac1 PACMAN_BACKEND_URL=http://127.0.0.1:8080 cargo run -p pacman-client
+XDG_CONFIG_HOME=/tmp/gc1 GHOSTCHASE_BACKEND_URL=http://127.0.0.1:8080 cargo run -p ghostchase-client
 # player 2
-XDG_CONFIG_HOME=/tmp/pac2 PACMAN_BACKEND_URL=http://127.0.0.1:8080 cargo run -p pacman-client
+XDG_CONFIG_HOME=/tmp/gc2 GHOSTCHASE_BACKEND_URL=http://127.0.0.1:8080 cargo run -p ghostchase-client
 ```
 
 Use `cargo run` (not the built binary directly) so Bevy resolves the client's
-`assets/`. The identity lives at `$XDG_CONFIG_HOME/pacman-1v1/identity.json`;
+`assets/`. The identity lives at `$XDG_CONFIG_HOME/ghost-chase-1v1/identity.json`;
 delete that directory to start over as a fresh guest. Press play in each: the
 client enqueues a ticket, GameFlow matches the two players, allocates a server
 for the match, and both clients connect to it.
@@ -170,7 +170,7 @@ In short:
   `GAME_BACKEND_API_TOKEN`, `JWT_SECRET`, `PORT`.
 - **server** (no key; GameFlow injects these into the pod): `GAME_BACKEND_URL`,
   `GAME_BACKEND_API_TOKEN`.
-- **client** (never any key): `PACMAN_BACKEND_URL`.
+- **client** (never any key): `GHOSTCHASE_BACKEND_URL`.
 
 `GAME_BACKEND_API_TOKEN` must be byte-for-byte identical in the backend and
 the server: it signs the session token the server checks at connect time.

@@ -42,17 +42,17 @@ impl Dir {
     }
 }
 
-/// Who is moving. Ghosts may cross the house door, Pac-Man may not.
+/// Who is moving. Ghosts may cross the house door, the runner may not.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Mover {
-    Pacman,
+    Runner,
     Ghost,
 }
 
 impl Mover {
     fn can_enter(self, tile: IVec2) -> bool {
         match self {
-            Mover::Pacman => MAZE.walkable_by_pacman(tile),
+            Mover::Runner => MAZE.walkable_by_runner(tile),
             Mover::Ghost => MAZE.walkable_by_ghost(tile),
         }
     }
@@ -184,7 +184,7 @@ mod tests {
     fn advancing_a_full_tile_moves_exactly_one_tile() {
         let mut p = open_pos();
         let start = p.tile;
-        let crossed = p.advance(None, Mover::Pacman, SPEED, 1.0 / SPEED);
+        let crossed = p.advance(None, Mover::Runner, SPEED, 1.0 / SPEED);
         assert_eq!(crossed, 1);
         assert_eq!(p.tile, start + IVec2::X);
         assert!(p.offset.abs() < 1e-5, "offset was {}", p.offset);
@@ -194,7 +194,7 @@ mod tests {
     fn advancing_half_a_tile_stays_in_the_tile() {
         let mut p = open_pos();
         let start = p.tile;
-        let crossed = p.advance(None, Mover::Pacman, SPEED, 0.5 / SPEED);
+        let crossed = p.advance(None, Mover::Runner, SPEED, 0.5 / SPEED);
         assert_eq!(crossed, 0);
         assert_eq!(p.tile, start);
         assert!((p.offset - 0.5).abs() < 1e-5);
@@ -203,9 +203,9 @@ mod tests {
     #[test]
     fn turning_does_not_happen_mid_tile() {
         let mut p = open_pos();
-        p.advance(None, Mover::Pacman, SPEED, 0.25 / SPEED);
+        p.advance(None, Mover::Runner, SPEED, 0.25 / SPEED);
         // Up is open from the spawn row, but we are not on a boundary yet.
-        p.advance(Some(Dir::Up), Mover::Pacman, SPEED, 0.25 / SPEED);
+        p.advance(Some(Dir::Up), Mover::Runner, SPEED, 0.25 / SPEED);
         assert_eq!(p.dir, Dir::Right, "turned in the middle of a tile");
     }
 
@@ -213,9 +213,9 @@ mod tests {
     fn turning_happens_when_landing_on_a_boundary() {
         let mut p = GridPos::new(IVec2::new(6, 23), Dir::Right);
         // (6,23) has an open corridor upward at (6,22).
-        assert!(MAZE.walkable_by_pacman(IVec2::new(6, 22)));
+        assert!(MAZE.walkable_by_runner(IVec2::new(6, 22)));
         p.offset = 0.0;
-        p.advance(Some(Dir::Up), Mover::Pacman, SPEED, 0.0);
+        p.advance(Some(Dir::Up), Mover::Runner, SPEED, 0.0);
         assert_eq!(p.dir, Dir::Up, "should turn in place when stopped");
     }
 
@@ -223,8 +223,8 @@ mod tests {
     fn walking_into_a_wall_parks_at_the_boundary() {
         // (1,1) is a corridor with a wall above it.
         let mut p = GridPos::new(IVec2::new(1, 1), Dir::Up);
-        assert!(!MAZE.walkable_by_pacman(IVec2::new(1, 0)));
-        let crossed = p.advance(None, Mover::Pacman, SPEED, 1.0);
+        assert!(!MAZE.walkable_by_runner(IVec2::new(1, 0)));
+        let crossed = p.advance(None, Mover::Runner, SPEED, 1.0);
         assert_eq!(crossed, 0);
         assert_eq!(p.offset, 0.0);
         assert_eq!(p.tile, IVec2::new(1, 1));
@@ -233,7 +233,7 @@ mod tests {
     #[test]
     fn a_long_step_crosses_several_tiles() {
         let mut p = GridPos::new(IVec2::new(1, 29), Dir::Right);
-        let crossed = p.advance(None, Mover::Pacman, SPEED, 3.0 / SPEED);
+        let crossed = p.advance(None, Mover::Runner, SPEED, 3.0 / SPEED);
         assert_eq!(crossed, 3);
         assert_eq!(p.tile, IVec2::new(4, 29));
     }
@@ -241,16 +241,16 @@ mod tests {
     #[test]
     fn crossing_the_tunnel_wraps_to_the_other_side() {
         let mut p = GridPos::new(IVec2::new(0, TUNNEL_ROW), Dir::Left);
-        p.advance(None, Mover::Pacman, SPEED, 1.0 / SPEED);
+        p.advance(None, Mover::Runner, SPEED, 1.0 / SPEED);
         assert_eq!(p.tile.x, crate::maze::MAZE_W as i32 - 1);
         assert_eq!(p.tile.y, TUNNEL_ROW);
     }
 
     #[test]
-    fn pacman_cannot_walk_through_the_ghost_door() {
+    fn runner_cannot_walk_through_the_ghost_door() {
         let mut p = GridPos::new(crate::maze::GHOST_DOOR, Dir::Down);
-        let crossed = p.advance(None, Mover::Pacman, SPEED, 1.0);
-        assert_eq!(crossed, 0, "pacman entered the ghost house");
+        let crossed = p.advance(None, Mover::Runner, SPEED, 1.0);
+        assert_eq!(crossed, 0, "runner entered the ghost house");
     }
 
     #[test]
@@ -288,11 +288,11 @@ mod tests {
     #[test]
     fn movement_is_step_size_independent() {
         let mut coarse = GridPos::new(IVec2::new(1, 29), Dir::Right);
-        coarse.advance(None, Mover::Pacman, SPEED, 4.0 / SPEED);
+        coarse.advance(None, Mover::Runner, SPEED, 4.0 / SPEED);
 
         let mut fine = GridPos::new(IVec2::new(1, 29), Dir::Right);
         for _ in 0..40 {
-            fine.advance(None, Mover::Pacman, SPEED, 0.1 / SPEED);
+            fine.advance(None, Mover::Runner, SPEED, 0.1 / SPEED);
         }
 
         assert_eq!(coarse.tile, fine.tile);

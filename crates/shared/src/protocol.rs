@@ -11,7 +11,7 @@ use serde::{de::DeserializeOwned, Deserialize, Serialize};
 use crate::ghosts::GhostMode;
 use crate::movement::{Dir, GridPos};
 use crate::pellets::PelletKind;
-use crate::sim::PacState;
+use crate::sim::RunnerState;
 
 /// Inputs. Unreliable: a dropped input is superseded by the next one 33ms later.
 pub const CH_INPUT: u8 = 0;
@@ -59,9 +59,9 @@ pub enum ServerMsg {
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub struct PacSnap {
+pub struct RunnerSnap {
     pub pos: GridPos,
-    pub state: PacState,
+    pub state: RunnerState,
     pub lives: u8,
     pub score: u32,
     pub energized: bool,
@@ -87,7 +87,7 @@ pub struct Snapshot {
     /// The most recent input sequence this client's slot had applied. Anything
     /// after it is still pending and gets replayed during reconciliation.
     pub last_processed_seq: u32,
-    pub pacmen: [PacSnap; 2],
+    pub runners: [RunnerSnap; 2],
     pub ghosts: Vec<GhostSnap>,
     pub pellet_deltas: Vec<PelletDelta>,
 }
@@ -116,9 +116,9 @@ mod tests {
     use super::*;
 
     fn sample_snapshot() -> Snapshot {
-        let pac = PacSnap {
+        let runner = RunnerSnap {
             pos: GridPos::new(IVec2::new(14, 23), Dir::Left),
-            state: PacState::Alive,
+            state: RunnerState::Alive,
             lives: 3,
             score: 12_340,
             energized: true,
@@ -128,7 +128,7 @@ mod tests {
             tick: 5_400,
             elapsed_ms: 180_000,
             last_processed_seq: 5_399,
-            pacmen: [pac.clone(), pac],
+            runners: [runner.clone(), runner],
             ghosts: (0..7)
                 .map(|i| GhostSnap {
                     pos: GridPos::new(IVec2::new(i, 14), Dir::Up),

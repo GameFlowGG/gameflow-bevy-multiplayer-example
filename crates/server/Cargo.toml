@@ -1,5 +1,5 @@
 [package]
-name = "pacman-server"
+name = "ghostchase-server"
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true
@@ -9,7 +9,7 @@ license.workspace = true
 # assets. It owns the simulation and is the only thing allowed to decide what
 # happened in a match.
 [dependencies]
-pacman-shared = { workspace = true }
+ghostchase-shared = { workspace = true }
 
 bevy = { workspace = true, default-features = false, features = [
     "std",

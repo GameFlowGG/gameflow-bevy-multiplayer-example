@@ -2,13 +2,13 @@
 //!
 //! One `tick` is one 30Hz step. The server owns an instance of this and is the
 //! only thing allowed to decide what happened; the client owns one too, but
-//! only ever feeds its own Pac-Man through it to predict local movement.
+//! only ever feeds its own runner through it to predict local movement.
 
 use glam::{IVec2, Vec2};
 use serde::{Deserialize, Serialize};
 
-use crate::difficulty::{Difficulty, PACMAN_SPEED};
-use crate::ghosts::{Ghost, GhostMode, PacTarget};
+use crate::difficulty::{Difficulty, RUNNER_SPEED};
+use crate::ghosts::{Ghost, GhostMode, RunnerTarget};
 use crate::maze::{MAZE_W, SPAWN_P0, SPAWN_P1};
 use crate::movement::{Dir, GridPos, Mover};
 use crate::pellets::{PelletField, PelletKind, Rng};
@@ -16,7 +16,7 @@ use crate::score;
 use crate::TICK_DT;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-pub enum PacState {
+pub enum RunnerState {
     Alive,
     /// Frozen after losing a life, waiting to respawn.
     Dying,
@@ -34,11 +34,11 @@ pub enum MatchPhase {
 }
 
 #[derive(Debug, Clone)]
-pub struct Pacman {
+pub struct Runner {
     pub slot: u8,
     pub pos: GridPos,
     pub desired: Option<Dir>,
-    pub state: PacState,
+    pub state: RunnerState,
     pub lives: u8,
     pub score: u32,
     /// Absolute sim times, not durations.
@@ -50,18 +50,18 @@ pub struct Pacman {
     pub ghost_combo: usize,
 }
 
-impl Pacman {
-    fn new(slot: u8) -> Pacman {
+impl Runner {
+    fn new(slot: u8) -> Runner {
         let (tile, dir) = if slot == 0 {
             (SPAWN_P0, Dir::Right)
         } else {
             (SPAWN_P1, Dir::Left)
         };
-        Pacman {
+        Runner {
             slot,
             pos: GridPos::new(tile, dir),
             desired: None,
-            state: PacState::Alive,
+            state: RunnerState::Alive,
             lives: score::LIVES,
             score: 0,
             energized_until: 0.0,
@@ -73,7 +73,7 @@ impl Pacman {
     }
 
     pub fn is_energized(&self, now: f32) -> bool {
-        self.state == PacState::Alive && now < self.energized_until
+        self.state == RunnerState::Alive && now < self.energized_until
     }
 
     pub fn is_stunned(&self, now: f32) -> bool {
@@ -86,7 +86,7 @@ impl Pacman {
 
     /// On the board and able to be hit, eat, or be eaten.
     pub fn is_active(&self) -> bool {
-        self.state == PacState::Alive
+        self.state == RunnerState::Alive
     }
 
     fn can_move(&self, now: f32) -> bool {
@@ -122,7 +122,7 @@ pub struct TickEvents {
 pub struct Sim {
     pub elapsed: f32,
     pub tick_count: u32,
-    pub pacmen: [Pacman; 2],
+    pub runners: [Runner; 2],
     pub ghosts: Vec<Ghost>,
     pub pellets: PelletField,
     pub phase: MatchPhase,
@@ -138,7 +138,7 @@ impl Sim {
         Sim {
             elapsed: 0.0,
             tick_count: 0,
-            pacmen: [Pacman::new(0), Pacman::new(1)],
+            runners: [Runner::new(0), Runner::new(1)],
             ghosts,
             pellets: PelletField::new_full(),
             phase: MatchPhase::Waiting,
@@ -163,7 +163,7 @@ impl Sim {
 
     /// Queues a turn for a slot. Applied on the next tick.
     pub fn set_input(&mut self, slot: u8, dir: Dir) {
-        if let Some(p) = self.pacmen.get_mut(slot as usize) {
+        if let Some(p) = self.runners.get_mut(slot as usize) {
             p.desired = Some(dir);
         }
     }
@@ -171,17 +171,17 @@ impl Sim {
     /// Removes a player from the match: they never connected, or they left.
     /// Their remaining lives are forfeit.
     pub fn abandon(&mut self, slot: u8) {
-        if let Some(p) = self.pacmen.get_mut(slot as usize) {
-            if p.state != PacState::Out {
+        if let Some(p) = self.runners.get_mut(slot as usize) {
+            if p.state != RunnerState::Out {
                 p.lives = 0;
-                p.state = PacState::Out;
+                p.state = RunnerState::Out;
             }
         }
         self.update_phase();
     }
 
     pub fn winner(&self) -> Option<u8> {
-        match self.pacmen[0].score.cmp(&self.pacmen[1].score) {
+        match self.runners[0].score.cmp(&self.runners[1].score) {
             std::cmp::Ordering::Greater => Some(0),
             std::cmp::Ordering::Less => Some(1),
             std::cmp::Ordering::Equal => None,
@@ -191,7 +191,7 @@ impl Sim {
     /// One fixed 30Hz step.
     ///
     /// The order below is load bearing: it decides who wins a tie when a
-    /// Pac-Man and a ghost reach the same tile on the same tick, and it makes
+    /// a runner and a ghost reach the same tile on the same tick, and it makes
     /// sure a pellet that just dripped cannot be eaten before it is visible.
     pub fn tick(&mut self) -> TickEvents {
         let mut events = TickEvents::default();
@@ -207,9 +207,9 @@ impl Sim {
             self.ghosts.push(Ghost::new(self.ghosts.len()));
         }
 
-        // 2. respawns, then Pac-Man movement
+        // 2. respawns, then runner movement
         self.resolve_respawns();
-        self.move_pacmen();
+        self.move_runners();
 
         // 3. pellet pickups
         self.eat_pellets(&mut events, &diff);
@@ -217,10 +217,10 @@ impl Sim {
         // 4. ghosts
         self.move_ghosts(&diff);
 
-        // 5. Pac-Man against ghosts
+        // 5. runners against ghosts
         self.resolve_ghost_contacts(&mut events);
 
-        // 6. Pac-Man against Pac-Man
+        // 6. runner against runner
         self.resolve_pvp(&mut events);
 
         // 7. board upkeep
@@ -234,27 +234,27 @@ impl Sim {
 
     fn resolve_respawns(&mut self) {
         let now = self.elapsed;
-        for p in self.pacmen.iter_mut() {
-            if p.state == PacState::Dying && now >= p.respawn_at {
+        for p in self.runners.iter_mut() {
+            if p.state == RunnerState::Dying && now >= p.respawn_at {
                 p.pos = GridPos::new(
                     p.spawn_tile(),
                     if p.slot == 0 { Dir::Right } else { Dir::Left },
                 );
                 p.desired = None;
-                p.state = PacState::Alive;
+                p.state = RunnerState::Alive;
                 p.ghost_combo = 0;
             }
         }
     }
 
-    fn move_pacmen(&mut self) {
+    fn move_runners(&mut self) {
         let now = self.elapsed;
-        for p in self.pacmen.iter_mut() {
+        for p in self.runners.iter_mut() {
             if !p.can_move(now) {
                 continue;
             }
             p.pos
-                .advance(p.desired, Mover::Pacman, PACMAN_SPEED, TICK_DT);
+                .advance(p.desired, Mover::Runner, RUNNER_SPEED, TICK_DT);
         }
     }
 
@@ -262,7 +262,7 @@ impl Sim {
         let now = self.elapsed;
         let mut energized_someone = false;
 
-        for p in self.pacmen.iter_mut() {
+        for p in self.runners.iter_mut() {
             if !p.is_active() {
                 continue;
             }
@@ -292,12 +292,12 @@ impl Sim {
 
     fn move_ghosts(&mut self, diff: &Difficulty) {
         let now = self.elapsed;
-        let anyone_energized = self.pacmen.iter().any(|p| p.is_energized(now));
+        let anyone_energized = self.runners.iter().any(|p| p.is_energized(now));
 
-        let targets: Vec<PacTarget> = self
-            .pacmen
+        let targets: Vec<RunnerTarget> = self
+            .runners
             .iter()
-            .map(|p| PacTarget {
+            .map(|p| RunnerTarget {
                 tile: p.pos.tile,
                 dir: p.pos.dir,
                 alive: p.is_active(),
@@ -321,18 +321,18 @@ impl Sim {
         let mut killed: Vec<u8> = Vec::new();
 
         for slot in 0..2usize {
-            if !self.pacmen[slot].is_active() {
+            if !self.runners[slot].is_active() {
                 continue;
             }
-            let pac_pos = self.pacmen[slot].pos.world();
-            let energized = self.pacmen[slot].is_energized(now);
+            let runner_pos = self.runners[slot].pos.world();
+            let energized = self.runners[slot].is_energized(now);
 
             for (gi, g) in self.ghosts.iter_mut().enumerate() {
-                if !touching(pac_pos, g.pos.world()) {
+                if !touching(runner_pos, g.pos.world()) {
                     continue;
                 }
                 if energized && g.is_edible() {
-                    let p = &mut self.pacmen[slot];
+                    let p = &mut self.runners[slot];
                     let points = score::ghost_points(p.ghost_combo);
                     p.ghost_combo += 1;
                     p.score += points;
@@ -352,7 +352,7 @@ impl Sim {
 
     fn resolve_pvp(&mut self, events: &mut TickEvents) {
         let now = self.elapsed;
-        let (a, b) = (&self.pacmen[0], &self.pacmen[1]);
+        let (a, b) = (&self.runners[0], &self.runners[1]);
         if !a.is_active() || !b.is_active() {
             return;
         }
@@ -363,7 +363,7 @@ impl Sim {
         let a_hunting = a.is_energized(now);
         let b_hunting = b.is_energized(now);
 
-        // Two energized Pac-Man bounce off each other. Neither is prey.
+        // Two energized runners bounce off each other. Neither is prey.
         let thief = match (a_hunting, b_hunting) {
             (true, false) => 0usize,
             (false, true) => 1usize,
@@ -371,17 +371,17 @@ impl Sim {
         };
         let victim = 1 - thief;
 
-        if self.pacmen[victim].is_immune(now) {
+        if self.runners[victim].is_immune(now) {
             return;
         }
 
-        let nominal = score::steal_amount(self.pacmen[victim].score);
-        let taken = nominal.min(self.pacmen[victim].score);
+        let nominal = score::steal_amount(self.runners[victim].score);
+        let taken = nominal.min(self.runners[victim].score);
 
-        self.pacmen[victim].score -= taken;
-        self.pacmen[victim].stunned_until = now + score::STUN_SECS;
-        self.pacmen[victim].immune_until = now + score::STEAL_IMMUNITY_SECS;
-        self.pacmen[thief].score += taken;
+        self.runners[victim].score -= taken;
+        self.runners[victim].stunned_until = now + score::STUN_SECS;
+        self.runners[victim].immune_until = now + score::STEAL_IMMUNITY_SECS;
+        self.runners[thief].score += taken;
 
         events
             .steals
@@ -390,7 +390,7 @@ impl Sim {
 
     fn replenish(&mut self, events: &mut TickEvents, diff: &Difficulty) {
         let live: Vec<IVec2> = self
-            .pacmen
+            .runners
             .iter()
             .filter(|p| p.is_active())
             .map(|p| p.pos.tile)
@@ -410,7 +410,7 @@ impl Sim {
 
     fn kill(&mut self, slot: u8, events: &mut TickEvents) {
         let now = self.elapsed;
-        let p = &mut self.pacmen[slot as usize];
+        let p = &mut self.runners[slot as usize];
         if !p.is_active() {
             return;
         }
@@ -421,10 +421,10 @@ impl Sim {
         events.deaths.push(slot);
 
         if p.lives == 0 {
-            p.state = PacState::Out;
+            p.state = RunnerState::Out;
             events.eliminated.push(slot);
         } else {
-            p.state = PacState::Dying;
+            p.state = RunnerState::Dying;
             p.respawn_at = now + score::DEATH_FREEZE_SECS;
         }
 
@@ -442,7 +442,7 @@ impl Sim {
         if matches!(self.phase, MatchPhase::Finished { .. } | MatchPhase::Waiting) {
             return;
         }
-        if self.pacmen.iter().all(|p| p.state == PacState::Out) {
+        if self.runners.iter().all(|p| p.state == RunnerState::Out) {
             self.phase = MatchPhase::Finished {
                 winner: self.winner(),
             };
@@ -494,10 +494,10 @@ mod tests {
     #[test]
     fn both_players_start_with_three_lives_and_no_score() {
         let s = Sim::new(1);
-        for p in &s.pacmen {
+        for p in &s.runners {
             assert_eq!(p.lives, 3);
             assert_eq!(p.score, 0);
-            assert_eq!(p.state, PacState::Alive);
+            assert_eq!(p.state, RunnerState::Alive);
         }
     }
 
@@ -507,11 +507,11 @@ mod tests {
         park_ghosts(&mut s);
         // Clear the board, then plant one pellet right where slot 0 will land.
         s.pellets = PelletField::empty();
-        let target = s.pacmen[0].pos.occupied_tile();
+        let target = s.runners[0].pos.occupied_tile();
         s.pellets.put(target, PelletKind::Normal);
 
         let ev = s.tick();
-        assert_eq!(s.pacmen[0].score, score::PELLET);
+        assert_eq!(s.runners[0].score, score::PELLET);
         assert_eq!(ev.pellets_eaten.len(), 1);
     }
 
@@ -519,12 +519,12 @@ mod tests {
     fn a_power_pellet_energizes_and_frightens_every_ghost() {
         let mut s = running_sim();
         s.pellets = PelletField::empty();
-        let target = s.pacmen[0].pos.occupied_tile();
+        let target = s.runners[0].pos.occupied_tile();
         s.pellets.put(target, PelletKind::Power);
 
         s.tick();
-        assert!(s.pacmen[0].is_energized(s.elapsed));
-        assert_eq!(s.pacmen[0].score, score::POWER_PELLET);
+        assert!(s.runners[0].is_energized(s.elapsed));
+        assert_eq!(s.runners[0].score, score::POWER_PELLET);
         assert!(s.ghosts.iter().all(|g| g.mode == GhostMode::Frightened));
     }
 
@@ -532,7 +532,7 @@ mod tests {
     fn the_ghost_chain_doubles_within_one_energization() {
         let mut s = running_sim();
         s.pellets = PelletField::empty();
-        s.pacmen[0].energized_until = 100.0;
+        s.runners[0].energized_until = 100.0;
         for g in s.ghosts.iter_mut() {
             g.frighten();
         }
@@ -540,7 +540,7 @@ mod tests {
         let mut awarded = Vec::new();
         for i in 0..4 {
             // Park a frightened ghost on top of slot 0 and let contact resolve.
-            s.ghosts[i].pos = s.pacmen[0].pos;
+            s.ghosts[i].pos = s.runners[0].pos;
             s.ghosts[i].mode = GhostMode::Frightened;
             let ev = s.tick();
             awarded.extend(ev.ghosts_eaten.iter().map(|(_, _, pts)| *pts));
@@ -553,14 +553,14 @@ mod tests {
     fn a_dangerous_ghost_takes_a_life() {
         let mut s = running_sim();
         s.pellets = PelletField::empty();
-        s.ghosts[0].pos = s.pacmen[0].pos;
+        s.ghosts[0].pos = s.runners[0].pos;
         s.ghosts[0].mode = GhostMode::Chase;
         s.ghosts[0].penned = false;
 
         let ev = s.tick();
         assert_eq!(ev.deaths, vec![0]);
-        assert_eq!(s.pacmen[0].lives, 2);
-        assert_eq!(s.pacmen[0].state, PacState::Dying);
+        assert_eq!(s.runners[0].lives, 2);
+        assert_eq!(s.runners[0].state, RunnerState::Dying);
     }
 
     #[test]
@@ -568,35 +568,35 @@ mod tests {
         let mut s = running_sim();
         s.pellets = PelletField::empty();
         park_ghosts(&mut s);
-        s.pacmen[1].state = PacState::Dying;
-        s.pacmen[1].respawn_at = s.elapsed + 0.001;
-        s.pacmen[1].pos = GridPos::new(IVec2::new(1, 1), Dir::Up);
+        s.runners[1].state = RunnerState::Dying;
+        s.runners[1].respawn_at = s.elapsed + 0.001;
+        s.runners[1].pos = GridPos::new(IVec2::new(1, 1), Dir::Up);
 
         s.tick();
-        assert_eq!(s.pacmen[1].state, PacState::Alive);
-        assert_eq!(s.pacmen[1].pos.tile, SPAWN_P1);
+        assert_eq!(s.runners[1].state, RunnerState::Alive);
+        assert_eq!(s.runners[1].pos.tile, SPAWN_P1);
     }
 
     #[test]
     fn losing_the_last_life_puts_you_out_but_the_match_runs_on() {
         let mut s = running_sim();
         s.pellets = PelletField::empty();
-        s.pacmen[0].lives = 1;
-        s.ghosts[0].pos = s.pacmen[0].pos;
+        s.runners[0].lives = 1;
+        s.ghosts[0].pos = s.runners[0].pos;
         s.ghosts[0].mode = GhostMode::Chase;
         s.ghosts[0].penned = false;
 
         let ev = s.tick();
         assert_eq!(ev.eliminated, vec![0]);
-        assert_eq!(s.pacmen[0].state, PacState::Out);
+        assert_eq!(s.runners[0].state, RunnerState::Out);
         assert_eq!(s.phase, MatchPhase::Running, "slot 1 is still playing");
     }
 
     #[test]
     fn the_match_finishes_only_when_both_players_are_out() {
         let mut s = running_sim();
-        s.pacmen[0].score = 500;
-        s.pacmen[1].score = 100;
+        s.runners[0].score = 500;
+        s.runners[1].score = 100;
 
         s.abandon(0);
         assert_eq!(s.phase, MatchPhase::Running);
@@ -608,8 +608,8 @@ mod tests {
     #[test]
     fn the_winner_is_whoever_scored_more() {
         let mut s = running_sim();
-        s.pacmen[0].score = 10;
-        s.pacmen[1].score = 20;
+        s.runners[0].score = 10;
+        s.runners[1].score = 20;
         s.abandon(0);
         s.abandon(1);
         assert_eq!(s.phase, MatchPhase::Finished { winner: Some(1) });
@@ -618,8 +618,8 @@ mod tests {
     #[test]
     fn an_equal_score_is_a_draw() {
         let mut s = running_sim();
-        s.pacmen[0].score = 700;
-        s.pacmen[1].score = 700;
+        s.runners[0].score = 700;
+        s.runners[1].score = 700;
         s.abandon(0);
         s.abandon(1);
         assert_eq!(s.phase, MatchPhase::Finished { winner: None });
@@ -629,10 +629,10 @@ mod tests {
     fn ghosts_ignore_a_player_who_is_out() {
         let mut s = running_sim();
         s.abandon(0);
-        let targets: Vec<PacTarget> = s
-            .pacmen
+        let targets: Vec<RunnerTarget> = s
+            .runners
             .iter()
-            .map(|p| PacTarget {
+            .map(|p| RunnerTarget {
                 tile: p.pos.tile,
                 dir: p.pos.dir,
                 alive: p.is_active(),
@@ -645,7 +645,7 @@ mod tests {
         g.pos = GridPos::new(SPAWN_P0, Dir::Up);
         assert_eq!(
             g.target(&targets, IVec2::ZERO),
-            s.pacmen[1].pos.tile,
+            s.runners[1].pos.tile,
             "every ghost should converge on the survivor"
         );
     }
@@ -655,17 +655,17 @@ mod tests {
         let mut s = running_sim();
         s.pellets = PelletField::empty();
         park_ghosts(&mut s);
-        s.pacmen[0].energized_until = 100.0;
-        s.pacmen[1].score = 2000;
-        s.pacmen[1].pos = s.pacmen[0].pos;
+        s.runners[0].energized_until = 100.0;
+        s.runners[1].score = 2000;
+        s.runners[1].pos = s.runners[0].pos;
 
         let ev = s.tick();
         assert_eq!(ev.steals.len(), 1, "expected exactly one steal");
         let (thief, victim, amount) = ev.steals[0];
         assert_eq!((thief, victim, amount), (0, 1, 200));
-        assert_eq!(s.pacmen[1].score, 1800);
-        assert_eq!(s.pacmen[0].score, 200);
-        assert!(s.pacmen[1].is_stunned(s.elapsed));
+        assert_eq!(s.runners[1].score, 1800);
+        assert_eq!(s.runners[0].score, 200);
+        assert!(s.runners[1].is_stunned(s.elapsed));
     }
 
     #[test]
@@ -673,13 +673,13 @@ mod tests {
         let mut s = running_sim();
         s.pellets = PelletField::empty();
         park_ghosts(&mut s);
-        s.pacmen[0].energized_until = 100.0;
-        s.pacmen[1].score = 1000;
-        s.pacmen[1].pos = s.pacmen[0].pos;
+        s.runners[0].energized_until = 100.0;
+        s.runners[1].score = 1000;
+        s.runners[1].pos = s.runners[0].pos;
 
         s.tick();
-        assert_eq!(s.pacmen[1].lives, 3, "eating your rival must not cost a life");
-        assert_eq!(s.pacmen[1].state, PacState::Alive);
+        assert_eq!(s.runners[1].lives, 3, "eating your rival must not cost a life");
+        assert_eq!(s.runners[1].state, RunnerState::Alive);
     }
 
     #[test]
@@ -687,9 +687,9 @@ mod tests {
         let mut s = running_sim();
         s.pellets = PelletField::empty();
         park_ghosts(&mut s);
-        s.pacmen[0].energized_until = 1000.0;
-        s.pacmen[1].score = 5000;
-        s.pacmen[1].pos = s.pacmen[0].pos;
+        s.runners[0].energized_until = 1000.0;
+        s.runners[1].score = 5000;
+        s.runners[1].pos = s.runners[0].pos;
 
         let first = s.tick();
         assert_eq!(first.steals.len(), 1);
@@ -697,7 +697,7 @@ mod tests {
         // Keep them overlapping. Immunity must hold for longer than the stun.
         let mut more = 0;
         for _ in 0..(4.0 / TICK_DT) as usize {
-            s.pacmen[1].pos = s.pacmen[0].pos;
+            s.runners[1].pos = s.runners[0].pos;
             more += s.tick().steals.len();
         }
         assert_eq!(more, 0, "a second steal landed inside the immunity window");
@@ -708,10 +708,10 @@ mod tests {
         let mut s = running_sim();
         s.pellets = PelletField::empty();
         park_ghosts(&mut s);
-        s.pacmen[0].energized_until = 100.0;
-        s.pacmen[1].energized_until = 100.0;
-        s.pacmen[1].score = 1000;
-        s.pacmen[1].pos = s.pacmen[0].pos;
+        s.runners[0].energized_until = 100.0;
+        s.runners[1].energized_until = 100.0;
+        s.runners[1].score = 1000;
+        s.runners[1].pos = s.runners[0].pos;
 
         assert!(s.tick().steals.is_empty());
     }
@@ -721,13 +721,13 @@ mod tests {
         let mut s = running_sim();
         s.pellets = PelletField::empty();
         park_ghosts(&mut s);
-        s.pacmen[1].stunned_until = s.elapsed + 10.0;
-        let before = s.pacmen[1].pos;
+        s.runners[1].stunned_until = s.elapsed + 10.0;
+        let before = s.runners[1].pos;
 
         for _ in 0..10 {
             s.tick();
         }
-        assert_eq!(s.pacmen[1].pos, before);
+        assert_eq!(s.runners[1].pos, before);
     }
 
     #[test]
@@ -781,14 +781,14 @@ mod tests {
     fn abandoning_forfeits_the_remaining_lives() {
         let mut s = running_sim();
         s.abandon(1);
-        assert_eq!(s.pacmen[1].lives, 0);
-        assert_eq!(s.pacmen[1].state, PacState::Out);
+        assert_eq!(s.runners[1].lives, 0);
+        assert_eq!(s.runners[1].state, RunnerState::Out);
     }
 
     #[test]
     fn abandoning_twice_is_harmless() {
         let mut s = running_sim();
-        s.pacmen[0].score = 1;
+        s.runners[0].score = 1;
         s.abandon(1);
         s.abandon(1);
         assert_eq!(s.phase, MatchPhase::Running);
@@ -810,9 +810,9 @@ mod tests {
             }
             s.tick();
 
-            for p in &s.pacmen {
+            for p in &s.runners {
                 assert!(
-                    crate::MAZE.walkable_by_pacman(p.pos.tile),
+                    crate::MAZE.walkable_by_runner(p.pos.tile),
                     "slot {} left the maze at {:?}",
                     p.slot,
                     p.pos.tile
@@ -840,7 +840,7 @@ mod tests {
                 s.set_input(0, Dir::ALL[i % 4]);
                 s.tick();
             }
-            (s.pacmen[0].score, s.pacmen[1].score, s.pellets.count())
+            (s.runners[0].score, s.runners[1].score, s.pellets.count())
         };
         assert_eq!(run(77), run(77));
     }
