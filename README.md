@@ -124,6 +124,11 @@ What you configure once in the dashboard for the platform side to work.
    - The **Skill Model + Skill Rule** together are what turn on skill-based
      matchmaking and make results update ratings. The **Expansion Rule** widens
      the acceptable skill gap as a ticket waits, so nobody is stuck in queue.
+   - On the Skill Rule, set the **Fairness Rule**. It starts at `none`, which
+     applies only Max Skill Delta. For 1v1 the direct one is `rating_delta` with a
+     `maxRatingDelta`: with one player per team it compares the two players'
+     ratings. `win_prob` and `draw_prob` are the alternatives, both scaled by the
+     model's beta.
 5. **Inject the server env** through the game's `config.environment_variables`:
    `GAME_BACKEND_URL` (where the server POSTs results) and
    `GAME_BACKEND_API_TOKEN` (must match the backend's).

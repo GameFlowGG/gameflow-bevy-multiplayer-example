@@ -12,8 +12,10 @@ use crate::error::{ApiError, ApiResult};
 
 /// What every ticket carries. On a skill-model matchmaker GameFlow resolves the
 /// player's real mu and sigma itself and ignores these, which is exactly why a
-/// client cannot inflate its own rating. On a FIFO matchmaker they are used as
-/// is and everyone is equal.
+/// client cannot inflate its own rating. A FIFO matchmaker does not read them
+/// either: it enqueues the ticket unrated. They are sent as a safe default for
+/// the one shape that still reads them, a Skill Rule published without a Skill
+/// Model node, which rejects a sigma of 0 or less.
 pub const NEUTRAL_MU: f64 = 25.0;
 pub const NEUTRAL_SIGMA: f64 = 8.333;
 
