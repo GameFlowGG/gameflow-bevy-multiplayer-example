@@ -35,6 +35,12 @@ struct ResultPlayer {
 #[derive(Debug, Serialize)]
 struct MatchResult {
     match_id: String,
+    /// GameFlow's own id for this match, when a queue formed it. Reporting it
+    /// links the rating change to the match's analytics. Absent locally and in
+    /// the allocation flow, where there is no match to link to, and never
+    /// filled with the local fallback id below.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    gameflow_match_id: Option<String>,
     players: Vec<ResultPlayer>,
     winner_slot: Option<u8>,
 }
@@ -127,6 +133,7 @@ fn send_result_when_finished(
         } else {
             session.match_id.clone()
         },
+        gameflow_match_id: (!session.match_id.is_empty()).then(|| session.match_id.clone()),
         players,
         winner_slot: winner,
     };
