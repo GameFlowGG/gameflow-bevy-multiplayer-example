@@ -45,6 +45,12 @@ reads its rank via the backend, which calls
 `POST /v1/skill-rating/player-rating:resolve`. GameFlow resolves the skill model
 from the live matchmaker, so the game never carries a model id.
 
+When a queue formed the match, GameFlow writes its own match id into the server's
+payload and the report carries it back as `match_id`. That is what links the rating
+change to the match's analytics, such as how long each player waited and how balanced
+the teams were. It is optional: a locally run match has none, and ratings are recorded
+the same way without it.
+
 ## Project structure
 
 ```

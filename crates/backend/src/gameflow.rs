@@ -70,6 +70,10 @@ struct ReportMatchRequest<'a> {
     game_id: &'a str,
     game_mode: &'a str,
     external_match_id: &'a str,
+    /// GameFlow's own match id. Optional, and omitted rather than sent empty:
+    /// it links this result to the match's analytics.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    match_id: Option<&'a str>,
     teams: Vec<ReportTeam>,
     /// One entry per team, lower is better. Equal values mean a draw.
     ranks: Vec<i32>,
@@ -191,6 +195,7 @@ impl GameFlowClient {
     pub async fn report_match(
         &self,
         external_match_id: &str,
+        match_id: Option<&str>,
         teams: Vec<ReportTeam>,
         ranks: Vec<i32>,
     ) -> ApiResult<serde_json::Value> {
@@ -198,6 +203,7 @@ impl GameFlowClient {
             game_id: &self.config.game_id,
             game_mode: &self.config.game_mode,
             external_match_id,
+            match_id: match_id.filter(|id| !id.trim().is_empty()),
             teams,
             ranks,
         };
@@ -312,11 +318,16 @@ mod tests {
             game_id: "gm_1",
             game_mode: "1v1",
             external_match_id: "mt_1",
+            match_id: Some("match-6f1e"),
             teams,
             ranks,
         };
         let json = serde_json::to_value(&body).unwrap();
         assert!(json.get("externalMatchId").is_some());
+        assert_eq!(
+            json.get("matchId").and_then(|v| v.as_str()),
+            Some("match-6f1e")
+        );
         assert!(json["teams"][0]["players"][0]
             .get("externalPlayerId")
             .is_some());

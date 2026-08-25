@@ -1,9 +1,17 @@
 //! The launch payload.
 //!
-//! GameFlow writes the allocation payload into the pod annotations and the SDK
-//! hands it back through `gf.payload()`. For a queue-formed match the payload
-//! is produced by the matchmaker, not by our backend, so the exact shape is not
-//! ours to define. Parsing is therefore deliberately forgiving: several key
+//! GameFlow writes the payload into the pod annotations and the SDK hands it
+//! back through `gf.payload()`. Two shapes arrive here. Our backend produces a
+//! flat list when it allocates a server itself. The matchmaker produces its own
+//! when it forms a match, and that one carries the match id and nests players
+//! under `teams`:
+//!
+//! ```json
+//! {"match_id":"match-6f1e","game_mode":"ranked","team_count":2,
+//!  "teams":[{"team_index":0,"players":[{"player_id":"p1","ticket_id":"t1","slot_index":0}]}]}
+//! ```
+//!
+//! Parsing is deliberately forgiving: both shapes are accepted, several key
 //! spellings are accepted, and a payload that cannot be understood is not fatal.
 //!
 //! When the roster is unusable the server falls back to assigning slots in
@@ -35,19 +43,48 @@ struct RawPlayer {
     slot: Option<u8>,
 }
 
+/// One team in a queue-formed payload.
+#[derive(Debug, Deserialize)]
+struct RawTeam {
+    #[serde(alias = "teamIndex", alias = "team_index")]
+    team_index: Option<u8>,
+    players: Option<Vec<RawPlayer>>,
+}
+
 #[derive(Debug, Deserialize)]
 struct RawRoster {
     #[serde(alias = "matchId", alias = "match_id", alias = "id")]
     match_id: Option<String>,
     #[serde(alias = "players", alias = "roster", alias = "tickets")]
     players: Option<Vec<RawPlayer>>,
+    /// A queue-formed match nests its players one level down, grouped by team,
+    /// rather than in a flat list.
+    teams: Option<Vec<RawTeam>>,
+}
+
+/// Flattens teams into one seat-ordered list: every team in team order, and
+/// within a team the players in the order given.
+///
+/// The per-player `slot_index` is deliberately not read. It is the seat within
+/// the team, so in a 1v1 both players carry 0 and using it would sit them on top
+/// of each other. Position in this flattened list is the seat.
+fn flatten_teams(mut teams: Vec<RawTeam>) -> Vec<RawPlayer> {
+    teams.sort_by_key(|t| t.team_index.unwrap_or(u8::MAX));
+    teams
+        .into_iter()
+        .filter_map(|t| t.players)
+        .flatten()
+        .collect()
 }
 
 impl Roster {
     /// Parses a payload. Returns `None` when there is nothing usable in it.
     pub fn parse(payload: &str) -> Option<Roster> {
         let raw: RawRoster = serde_json::from_str(payload).ok()?;
-        let players = raw.players?;
+        let players = match raw.players {
+            Some(players) => players,
+            None => flatten_teams(raw.teams?),
+        };
 
         let players: Vec<RosterPlayer> = players
             .into_iter()
@@ -162,5 +199,17 @@ mod tests {
         let raw = r#"{"players":[{"playerId":"gst_a"}]}"#;
         let r = Roster::parse(raw).unwrap();
         assert_eq!(r.slot_of("gst_zzz"), None);
+    }
+    #[test]
+    fn a_queue_formed_payload_parses() {
+        let raw = r#"{"match_id":"match-6f1e","game_mode":"ranked","team_count":2,
+          "teams":[
+            {"team_index":1,"players":[{"player_id":"p2","ticket_id":"t2","slot_index":0}]},
+            {"team_index":0,"players":[{"player_id":"p1","ticket_id":"t1","slot_index":0}]}]}"#;
+        let r = Roster::parse(raw).unwrap();
+        assert_eq!(r.match_id, "match-6f1e");
+        assert_eq!(r.players.len(), 2);
+        assert_eq!(r.slot_of("p1"), Some(0), "team 0 must seat first");
+        assert_eq!(r.slot_of("p2"), Some(1));
     }
 }

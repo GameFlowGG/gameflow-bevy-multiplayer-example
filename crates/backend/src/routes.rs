@@ -210,6 +210,11 @@ fn default_true() -> bool {
 #[derive(Debug, Deserialize)]
 pub struct MatchResultRequest {
     pub match_id: String,
+    /// GameFlow's own match id, when the game server had one. Optional: without
+    /// it ratings are recorded the same way, only the link to the match's
+    /// analytics is lost.
+    #[serde(default)]
+    pub gameflow_match_id: Option<String>,
     pub players: Vec<ResultPlayer>,
     /// Slot of the winner, or `None` on a draw.
     #[serde(default)]
@@ -262,7 +267,12 @@ pub async fn match_result(
 
     match state
         .gameflow
-        .report_match(&req.match_id, teams, ranks)
+        .report_match(
+            &req.match_id,
+            req.gameflow_match_id.as_deref(),
+            teams,
+            ranks,
+        )
         .await
     {
         Ok(_) => {
